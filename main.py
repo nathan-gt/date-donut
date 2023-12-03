@@ -4,8 +4,10 @@ import glob
 from math import floor
 from random import randint, shuffle
 import time
+from copy import deepcopy
 
 peeps = {0: {}} # empty dictionnary
+peepsCopy = {0: {}} # empty dictionnary to be used to keep the original loaded peeps
 GROUP_SIZE = 3
 DONUTS = "donuts"
 groups = []
@@ -27,11 +29,11 @@ def LoadDonutHistory():
         reader = csv.DictReader(csvfile)
         i=0
         for row in reader:
-            peeps[i] = {}
-            peeps[i]['id'] = i
-            peeps[i]['name'] = row['name']
-            if row[DONUTS] != None and row[DONUTS] != "": peeps[i][DONUTS] = list(map(int, row[DONUTS].split('-')))
-            else: peeps[i][DONUTS] = []
+            peepsCopy[i] = {}
+            peepsCopy[i]['id'] = i
+            peepsCopy[i]['name'] = row['name']
+            if row[DONUTS] != None and row[DONUTS] != "": peepsCopy[i][DONUTS] = list(map(int, row[DONUTS].split('-')))
+            else: peepsCopy[i][DONUTS] = []
             i+=1
 
 # util function to know if 2 ids in a group have already met, returns True or False
@@ -42,6 +44,11 @@ def HasNoConflict(group, id):
 
 def GenerateGroups(): 
     passedPeeps = []
+    global groups
+    global peeps
+    global peepsCopy
+    groups = []
+    peeps = deepcopy(peepsCopy)
     nbFullGroups = floor(len(peeps)/GROUP_SIZE)
     peepsRandArray = list(peeps.values()).copy() # this is to randomly iterate through the peeps without losing key bindings in the dictionary
     shuffle(peepsRandArray)
@@ -59,16 +66,27 @@ def GenerateGroups():
                     found = True
                     break
             if not found:
-                print("Soft lock happened during execution due to insufficient available IDs, consider re-executing the program to try generating dates again")
-                exit()
+                groups = []
+                return False # There is no possible group with the ids left
         else: # full group behavior
             group = [peep['id']]
             passedPeeps.append(peep['id'])
             for _ in range(GROUP_SIZE-1):
                 id = -1
-                if len(passedPeeps) != len(peeps) :
-                    while (id < 0 or id in passedPeeps or id in peep[DONUTS] or not HasNoConflict(group, id) or id == peep['id']):
-                        id = randint(0, len(peeps)-1)
+                if len(passedPeeps) != len(peeps) : 
+                    if len(peeps) - len(passedPeeps) <= len(peep[DONUTS]): # try to choose an id when it's possible there are no options left
+                        for p in peepsRandArray:
+                            if p['id'] in passedPeeps or p['id'] == peep['id'] or not HasNoConflict(group, p['id']): continue
+                            else:
+                                id = p['id']
+                                break;
+                        if id == -1 : 
+                            groups = []
+                            return False # There is no possible group with the ids left
+                    else: 
+                        while (id < 0 or id in passedPeeps or id in peep[DONUTS] or not HasNoConflict(group, id) or id == peep['id']):
+                            id = randint(0, len(peeps)-1)
+                    
                     group.append(id)
                     passedPeeps.append(id)
             
@@ -81,7 +99,8 @@ def GenerateGroups():
                 peeps[pers][DONUTS].extend(temp)
 
         if len(passedPeeps) == len(peeps) : 
-            return
+            return True
+    return True
         
 # updates the save
 def WriteOut():
@@ -106,7 +125,9 @@ def PrintGroups():
         print("\n")
 
 LoadDonutHistory()
-GenerateGroups()
+while not GenerateGroups(): 
+    print("Stumbled upon an impossible generation, attempting automatic retry")
+    continue
 WriteOut()
-print("\nDate donuts generated and written in saves/save.csv!\n")
+print("\nDate donuts generated and written in ./saves/ !\n")
 PrintGroups()
