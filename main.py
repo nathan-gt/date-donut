@@ -6,7 +6,7 @@ from random import randint, shuffle
 import time
 from copy import deepcopy
 
-peeps = {0: {}} # empty dictionnary
+peeps = {0: {'id':0, 'name':'', 'donuts': [1,2,3]}} # empty dictionnary (example template)
 peepsCopy = {0: {}} # empty dictionnary to be used to keep the original loaded peeps
 GROUP_SIZE = 3
 DONUTS = "donuts"
